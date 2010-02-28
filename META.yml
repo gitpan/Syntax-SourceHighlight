@@ -1,0 +1,15 @@
+--- #YAML:1.0
+name:                Syntax-SourceHighlight
+version:             1.0.1
+abstract:            Perl Binding to GNU Source Highlight
+license:             Public Domain
+author:              Thomas Chust <chust@web.de>
+distribution_type:   module
+build_requires:
+    ExtUtils::PkgConfig: 1.12
+requires:
+provides:
+    Syntax::SourceHighlight: 1.0.1
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3
