@@ -1,0 +1,11 @@
+SWIG = swig
+SWIGFLAGS = 
+
+.PHONY: src clean
+src: SourceHighlight.pm SourceHighlight_wrap.cxx
+
+clean:
+	$(RM) SourceHighlight.pm SourceHighlight_wrap.cxx
+
+SourceHighlight.pm SourceHighlight_wrap.cxx: SourceHighlight.i
+	$(SWIG) -perl -c++ $(SWIGFLAGS) $<

@@ -1,0 +1,183 @@
+=head1 NAME
+
+Syntax::SourceHighlight - Perl Binding to GNU Source Highlight
+
+=head1 SYNOPSIS
+
+  use Syntax::SourceHighlight;
+
+  my $hl = Syntax::SourceHighlight::SourceHighlight->new();
+  my $lm = Syntax::SourceHighlight::LangMap->new();
+
+  print $hl->highlightString(
+    'my $_ = 42;',
+    $lm->getMappedFileName('perl')
+  );
+
+=head1 DESCRIPTION
+
+Source Highlight is a library to format code written in a number of
+programming languages as text in a number of markup languages.
+
+This binding to the underlying C++ library is very basic, supporting
+only the essential functionality.
+
+Note that any exceptions thrown by the underlying C++ library are
+caught by the Perl binding and rethrown using the equivalent of a
+C<die> statement.
+
+=head2 CONSTRUCTORS
+
+=over
+
+=item Syntax::SourceHighlight::SourceHighlight->new([$output_language])
+
+Creates a new source highlighting control object that formats code
+using the specified output language.
+
+The output language is a file name resolved relative to the data
+directory of the control object. The default output language is
+C<'html.outlang'>. The default data directory depends on the
+compilation time setup of the underlying C++ library.
+
+=item Syntax::SourceHighlight::LangMap->new([[$data_directory], $language_map])
+
+Creates a new language map using the given name and data directory. A
+language map can be used to determine the correct input language
+file name for a source file name or a language name.
+
+The language map name is a file name resolved relative to the data
+directory. The default language map is C<'lang.map'>. The default data
+directory depends on the compilation time setup of the underlying C++
+library.
+
+=back
+
+=head2 METHODS OF Syntax::SourceHighlight::SourceHighlight
+
+=over
+
+=item $hl->highlightFile($input_file_name, $output_file_name, $input_language)
+
+Highlights the contents of the input file into the output file, using
+the specified input language definition.
+
+If the input or output file names are the empty string, standard input
+or output will be used respectively.
+
+=item $hl->highlightString($input, $input_language, [$input_file_name])
+
+Highlights the contents of the input string using the specified input
+language definition. The output is again returned as a string.
+
+Optionally, the input may be given a name that can be used by output
+templates.
+
+=item $hl->checkLangDef($input_language)
+
+Only check the validity of the language definition file.
+
+If the language definition is valid it simply returns, otherwise, it
+throws an exception.
+
+=item $hl->checkOutLangDef($output_language)
+
+Only check the validity of the out language definition file.
+
+If the language definition is valid it simply returns, otherwise, it
+throws an exception.
+
+=item $hl->createOutputFileName($input_file_name)
+
+Given the input file name creates an output file name.
+
+=back
+
+=head2 PROPERTY SETTERS OF Syntax::SourceHighlight::SourceHighlight
+
+=over
+
+=item $hl->setDataDir($data_directory_name)
+
+=item $hl->setStyleFile($style_file_name)
+
+=item $hl->setStyleCssFile($style_file_name)
+
+=item $hl->setStyleDefaultFile($style_file_name)
+
+=item $hl->setTitle($title)
+
+=item $hl->setCss($css)
+
+=item $hl->setHeaderFileName($header_file_name)
+
+=item $hl->setFooterFileName($footer_file_name)
+
+=item $hl->setOutputDir($output_directory_name)
+
+=item $hl->setOptimize([$flag])
+
+=item $hl->setGenerateLineNumbers([$flag])
+
+=item $hl->setGenerateLineNumberRefs([$flag])
+
+=item $hl->setLineNumberPad($character)
+
+=item $hl->setLineNumberAnchorPrefix($prefix)
+
+=item $hl->setGenerateEntireDoc([$flag])
+
+=item $hl->setGenerateVersion([$flag])
+
+=item $hl->setCanUseStdOut([$flag])
+
+=item $hl->setBinaryOutput([$flag])
+
+=item $hl->setRangeSeparator($separator)
+
+=item $hl->setTabSpaces($number)
+
+=back
+
+=head2 METHODS OF Syntax::SourceHighlight::LangMap
+
+=over
+
+=item $lm->getMappedFileName($language)
+
+Determines a suitable input language name for the given human readable
+language name. If no known input language definition is found, the
+method returns the empty string.
+
+=item $lm->getMappedFileNameFromFileName($file_name)
+
+Determines a suitable input language name for the given source
+file name. If no known input language definition is found, the
+method returns the empty string.
+
+Note that the default language map shipped with recent versions of the
+Source Highlight library maps the file name extension C<'.pl'> to
+Prolog, not Perl :-(
+
+=back
+
+=head1 SEE ALSO
+
+The homepage of the original library is at
+L<http://www.gnu.org/software/src-highlite/>.
+
+The most recent source code for the binding can be found at
+L<https://code.launchpad.net/~chust/+junk/SourceHighlight>.
+
+=head1 AUTHOR
+
+Thomas Chust, E<lt>chust@web.deE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2010 by Thomas Chust
+
+This binding is in the public domain.
+
+
+=cut
