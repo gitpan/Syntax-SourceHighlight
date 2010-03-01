@@ -1455,11 +1455,14 @@ SWIG_Perl_SetModule(swig_module_info *module) {
 
 /* -------- TYPES TABLE (BEGIN) -------- */
 
-#define SWIGTYPE_p_LangMap swig_types[0]
-#define SWIGTYPE_p_SourceHighlight swig_types[1]
-#define SWIGTYPE_p_char swig_types[2]
-static swig_type_info *swig_types[4];
-static swig_module_info swig_module = {swig_types, 3, 0, 0, 0, 0};
+#define SWIGTYPE_p_HighlightEvent swig_types[0]
+#define SWIGTYPE_p_HighlightEventListener swig_types[1]
+#define SWIGTYPE_p_HighlightToken swig_types[2]
+#define SWIGTYPE_p_LangMap swig_types[3]
+#define SWIGTYPE_p_PerlSourceHighlight swig_types[4]
+#define SWIGTYPE_p_char swig_types[5]
+static swig_type_info *swig_types[7];
+static swig_module_info swig_module = {swig_types, 6, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -1499,11 +1502,193 @@ SWIGEXPORT void SWIG_init (CV *cv, CPerlObj *);
 
 
 #include <sstream>
+#include <srchilite/highlighttoken.h>
+#include <srchilite/highlightevent.h>
+#include <srchilite/highlighteventlistener.h>
 #include <srchilite/sourcehighlight.h>
 #include <srchilite/langmap.h>
 #include <srchilite/ioexception.h>
 
 using namespace srchilite;
+
+SWIGINTERN std::string const &HighlightToken_prefix(HighlightToken *self){
+    return self->prefix;
+  }
+
+SWIGINTERNINLINE SV *
+SWIG_FromCharPtrAndSize(const char* carray, size_t size)
+{
+  SV *obj = sv_newmortal();
+  if (carray) {
+    sv_setpvn(obj, carray, size);
+  } else {
+    sv_setsv(obj, &PL_sv_undef);
+  }
+  return obj;
+}
+
+
+SWIGINTERNINLINE SV *
+SWIG_From_std_string  SWIG_PERL_DECL_ARGS_1(const std::string& s)
+{
+  if (s.size()) {
+    return SWIG_FromCharPtrAndSize(s.data(), s.size());
+  } else {
+    return SWIG_FromCharPtrAndSize(s.c_str(), 0);
+  }
+}
+
+SWIGINTERN bool HighlightToken_isPrefixOnlySpaces(HighlightToken *self){
+    return self->prefixOnlySpaces;
+  }
+
+SWIGINTERNINLINE SV *
+SWIG_From_bool  SWIG_PERL_DECL_ARGS_1(bool value)
+{    
+  SV *obj = sv_newmortal();
+  if (value) {
+    sv_setsv(obj, &PL_sv_yes);
+  } else {
+    sv_setsv(obj, &PL_sv_no); 
+  }
+  return obj;
+}
+
+SWIGINTERN std::string const &HighlightToken_suffix(HighlightToken *self){
+    return self->suffix;
+  }
+SWIGINTERN unsigned int HighlightToken_matchedSize(HighlightToken *self){
+    return self->matchedSize;
+  }
+
+SWIGINTERN int
+SWIG_AsVal_double SWIG_PERL_DECL_ARGS_2(SV *obj, double *val)
+{
+  if (SvNIOK(obj)) {
+    if (val) *val = SvNV(obj);
+    return SWIG_OK;
+  } else if (SvIOK(obj)) {
+    if (val) *val = (double) SvIV(obj);
+    return SWIG_AddCast(SWIG_OK);
+  } else {
+    const char *nptr = SvPV_nolen(obj);
+    if (nptr) {
+      char *endptr;
+      double v = strtod(nptr, &endptr);
+      if (errno == ERANGE) {
+	errno = 0;
+	return SWIG_OverflowError;
+      } else {
+	if (*endptr == '\0') {
+	  if (val) *val = v;
+	  return SWIG_Str2NumCast(SWIG_OK);
+	}
+      }
+    }
+  }
+  return SWIG_TypeError;
+}
+
+
+SWIGINTERNINLINE SV *
+SWIG_From_unsigned_SS_long  SWIG_PERL_DECL_ARGS_1(unsigned long value)
+{    
+  SV *obj = sv_newmortal();
+  sv_setuv(obj, (UV) value);
+  return obj;
+}
+
+
+SWIGINTERNINLINE SV *
+SWIG_From_unsigned_SS_int  SWIG_PERL_DECL_ARGS_1(unsigned int value)
+{    
+  return SWIG_From_unsigned_SS_long  SWIG_PERL_CALL_ARGS_1(value);
+}
+
+SWIGINTERN MatchedElements const &HighlightToken_matched(HighlightToken *self){
+    return self->matched;
+  }
+
+SWIGINTERNINLINE SV *
+SWIG_From_long  SWIG_PERL_DECL_ARGS_1(long value)
+{    
+  SV *obj = sv_newmortal();
+  sv_setiv(obj, (IV) value);
+  return obj;
+}
+
+
+SWIGINTERNINLINE SV *
+SWIG_From_int  SWIG_PERL_DECL_ARGS_1(int value)
+{    
+  return SWIG_From_long  SWIG_PERL_CALL_ARGS_1(value);
+}
+
+SWIGINTERN HighlightToken const &HighlightEvent_token(HighlightEvent *self){
+    return self->token;
+  }
+SWIGINTERN HighlightEvent::HighlightEventType HighlightEvent_type(HighlightEvent *self){
+    return self->type;
+  }
+
+class PerlHighlightEventListener : public HighlightEventListener {
+ private:
+  SV *callback;
+  
+ public:
+  PerlHighlightEventListener(SV *callback) : HighlightEventListener(), callback(callback) {
+    SvREFCNT_inc(callback);
+  }
+  
+  virtual ~PerlHighlightEventListener() {
+    SvREFCNT_dec(callback);
+  }
+  
+  virtual void notify(const HighlightEvent &event) {
+    dSP;
+    
+    ENTER;
+    SAVETMPS;
+    
+    PUSHMARK(SP);
+    XPUSHs(SWIG_NewPointerObj(SWIG_as_voidptr(&event),
+			      SWIGTYPE_p_HighlightEvent, SWIG_SHADOW));
+    PUTBACK;
+    
+    call_sv(callback, G_VOID | G_EVAL);
+    
+    FREETMPS;
+    LEAVE;
+    
+    if (SvTRUE(ERRSV)) {
+      STRLEN len;
+      throw std::runtime_error(SvPV(ERRSV, len));
+    }
+  }
+} ;
+
+
+class PerlSourceHighlight : public SourceHighlight {
+ private:
+  HighlightEventListener *highlightEventListener;
+
+ public:
+  PerlSourceHighlight(const std::string &outputLang) : SourceHighlight(outputLang), highlightEventListener(0) {
+  }
+
+  ~PerlSourceHighlight() {
+    setHighlightEventListener(0);
+  }
+
+  void setHighlightEventListener(HighlightEventListener *l) {
+    SourceHighlight::setHighlightEventListener(l);
+    
+    if (highlightEventListener)
+      delete highlightEventListener;
+    
+    highlightEventListener = l;
+  }
+} ;
 
 
 SWIGINTERN swig_type_info*
@@ -1582,59 +1767,6 @@ SWIG_AsPtr_std_string SWIG_PERL_DECL_ARGS_2(SV * obj, std::string **val)
     }
   }
   return SWIG_ERROR;
-}
-
-
-SWIGINTERNINLINE SV *
-SWIG_FromCharPtrAndSize(const char* carray, size_t size)
-{
-  SV *obj = sv_newmortal();
-  if (carray) {
-    sv_setpvn(obj, carray, size);
-  } else {
-    sv_setsv(obj, &PL_sv_undef);
-  }
-  return obj;
-}
-
-
-SWIGINTERNINLINE SV *
-SWIG_From_std_string  SWIG_PERL_DECL_ARGS_1(const std::string& s)
-{
-  if (s.size()) {
-    return SWIG_FromCharPtrAndSize(s.data(), s.size());
-  } else {
-    return SWIG_FromCharPtrAndSize(s.c_str(), 0);
-  }
-}
-
-
-SWIGINTERN int
-SWIG_AsVal_double SWIG_PERL_DECL_ARGS_2(SV *obj, double *val)
-{
-  if (SvNIOK(obj)) {
-    if (val) *val = SvNV(obj);
-    return SWIG_OK;
-  } else if (SvIOK(obj)) {
-    if (val) *val = (double) SvIV(obj);
-    return SWIG_AddCast(SWIG_OK);
-  } else {
-    const char *nptr = SvPV_nolen(obj);
-    if (nptr) {
-      char *endptr;
-      double v = strtod(nptr, &endptr);
-      if (errno == ERANGE) {
-	errno = 0;
-	return SWIG_OverflowError;
-      } else {
-	if (*endptr == '\0') {
-	  if (val) *val = v;
-	  return SWIG_Str2NumCast(SWIG_OK);
-	}
-      }
-    }
-  }
-  return SWIG_TypeError;
 }
 
 
@@ -1841,13 +1973,21 @@ SWIG_AsVal_unsigned_SS_int SWIG_PERL_DECL_ARGS_2(SV * obj, unsigned int *val)
   return res;
 }
 
-SWIGINTERN std::string const SourceHighlight_highlightString(SourceHighlight *self,std::string const &input,std::string const &inputLang,std::string const &inputFileName=""){
+SWIGINTERN std::string const PerlSourceHighlight_highlightString(PerlSourceHighlight *self,std::string const &input,std::string const &inputLang,std::string const &inputFileName=""){
     std::stringstream inputStream(input);
     std::stringstream outputStream;
 
     self->highlight(inputStream, outputStream, inputLang, inputFileName);
 
     return outputStream.str();
+  }
+SWIGINTERN std::set< std::string > const LangMap_langNames(LangMap *self){
+    self->open();
+    return self->getLangNames();
+  }
+SWIGINTERN std::set< std::string > const LangMap_mappedFileNames(LangMap *self){
+    self->open();
+    return self->getMappedFileNames();
   }
 #ifdef __cplusplus
 extern "C" {
@@ -1878,34 +2018,29 @@ SWIGCLASS_STATIC int swig_magic_readonly(pTHX_ SV *SWIGUNUSEDPARM(sv), MAGIC *SW
 #ifdef __cplusplus
 extern "C" {
 #endif
-XS(_wrap_new_SourceHighlight) {
+XS(_wrap_HighlightToken_prefix) {
   {
-    std::string const &arg1_defvalue = "html.outlang" ;
-    std::string *arg1 = (std::string *) &arg1_defvalue ;
-    int res1 = SWIG_OLDOBJ ;
+    HighlightToken *arg1 = (HighlightToken *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
     int argvi = 0;
-    SourceHighlight *result = 0 ;
+    std::string *result = 0 ;
     dXSARGS;
     
-    if ((items < 0) || (items > 1)) {
-      SWIG_croak("Usage: new_SourceHighlight(outputLang);");
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: HighlightToken_prefix(self);");
     }
-    if (items > 0) {
-      {
-        std::string *ptr = (std::string *)0;
-        res1 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(0), &ptr);
-        if (!SWIG_IsOK(res1)) {
-          SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "new_SourceHighlight" "', argument " "1"" of type '" "std::string const &""'"); 
-        }
-        if (!ptr) {
-          SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "new_SourceHighlight" "', argument " "1"" of type '" "std::string const &""'"); 
-        }
-        arg1 = ptr;
-      }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightToken, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "HighlightToken_prefix" "', argument " "1"" of type '" "HighlightToken *""'"); 
     }
+    arg1 = reinterpret_cast< HighlightToken * >(argp1);
     {
       try {
-        result = (SourceHighlight *)new SourceHighlight((std::string const &)*arg1);
+        {
+          std::string const &_result_ref = HighlightToken_prefix(arg1);
+          result = (std::string *) &_result_ref;
+        }
       }
       catch (srchilite::IOException &e) {
         SWIG_exception(SWIG_IOError, e.message.c_str());
@@ -1928,7 +2063,498 @@ XS(_wrap_new_SourceHighlight) {
       }
       /*@SWIG@*/
     }
-    ST(argvi) = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_SourceHighlight, SWIG_OWNER | SWIG_SHADOW); argvi++ ;
+    ST(argvi) = SWIG_From_std_string  SWIG_PERL_CALL_ARGS_1(static_cast< std::string >(*result)); argvi++ ;
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_HighlightToken_isPrefixOnlySpaces) {
+  {
+    HighlightToken *arg1 = (HighlightToken *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    bool result;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: HighlightToken_isPrefixOnlySpaces(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightToken, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "HighlightToken_isPrefixOnlySpaces" "', argument " "1"" of type '" "HighlightToken *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightToken * >(argp1);
+    {
+      try {
+        result = (bool)HighlightToken_isPrefixOnlySpaces(arg1);
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    ST(argvi) = SWIG_From_bool  SWIG_PERL_CALL_ARGS_1(static_cast< bool >(result)); argvi++ ;
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_HighlightToken_suffix) {
+  {
+    HighlightToken *arg1 = (HighlightToken *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    std::string *result = 0 ;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: HighlightToken_suffix(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightToken, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "HighlightToken_suffix" "', argument " "1"" of type '" "HighlightToken *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightToken * >(argp1);
+    {
+      try {
+        {
+          std::string const &_result_ref = HighlightToken_suffix(arg1);
+          result = (std::string *) &_result_ref;
+        }
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    ST(argvi) = SWIG_From_std_string  SWIG_PERL_CALL_ARGS_1(static_cast< std::string >(*result)); argvi++ ;
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_HighlightToken_matchedSize) {
+  {
+    HighlightToken *arg1 = (HighlightToken *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    unsigned int result;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: HighlightToken_matchedSize(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightToken, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "HighlightToken_matchedSize" "', argument " "1"" of type '" "HighlightToken *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightToken * >(argp1);
+    {
+      try {
+        result = (unsigned int)HighlightToken_matchedSize(arg1);
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    ST(argvi) = SWIG_From_unsigned_SS_int  SWIG_PERL_CALL_ARGS_1(static_cast< unsigned int >(result)); argvi++ ;
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_HighlightToken_matched) {
+  {
+    HighlightToken *arg1 = (HighlightToken *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    MatchedElements *result = 0 ;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: HighlightToken_matched(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightToken, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "HighlightToken_matched" "', argument " "1"" of type '" "HighlightToken *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightToken * >(argp1);
+    {
+      try {
+        {
+          MatchedElements const &_result_ref = HighlightToken_matched(arg1);
+          result = (MatchedElements *) &_result_ref;
+        }
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    {
+      AV *elements = newAV();
+      
+      for (MatchedElements::const_iterator it = result->begin(); it != result->end(); ++it)
+      av_push(elements, newSVpvf("%s:%s", it->first.c_str(), it->second.c_str()));
+      
+      ST(argvi) = sv_2mortal((SV *)newRV_noinc((SV *)elements));
+      argvi++;
+    }
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_delete_HighlightToken) {
+  {
+    HighlightToken *arg1 = (HighlightToken *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: delete_HighlightToken(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightToken, SWIG_POINTER_DISOWN |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_HighlightToken" "', argument " "1"" of type '" "HighlightToken *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightToken * >(argp1);
+    {
+      try {
+        delete arg1;
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_HighlightEvent_token) {
+  {
+    HighlightEvent *arg1 = (HighlightEvent *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    HighlightToken *result = 0 ;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: HighlightEvent_token(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightEvent, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "HighlightEvent_token" "', argument " "1"" of type '" "HighlightEvent *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightEvent * >(argp1);
+    {
+      try {
+        {
+          HighlightToken const &_result_ref = HighlightEvent_token(arg1);
+          result = (HighlightToken *) &_result_ref;
+        }
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    ST(argvi) = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_HighlightToken, 0 | SWIG_SHADOW); argvi++ ;
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_HighlightEvent_type) {
+  {
+    HighlightEvent *arg1 = (HighlightEvent *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    HighlightEvent::HighlightEventType result;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: HighlightEvent_type(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightEvent, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "HighlightEvent_type" "', argument " "1"" of type '" "HighlightEvent *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightEvent * >(argp1);
+    {
+      try {
+        result = (HighlightEvent::HighlightEventType)HighlightEvent_type(arg1);
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    ST(argvi) = SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(result)); argvi++ ;
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_delete_HighlightEvent) {
+  {
+    HighlightEvent *arg1 = (HighlightEvent *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: delete_HighlightEvent(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_HighlightEvent, SWIG_POINTER_DISOWN |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_HighlightEvent" "', argument " "1"" of type '" "HighlightEvent *""'"); 
+    }
+    arg1 = reinterpret_cast< HighlightEvent * >(argp1);
+    {
+      try {
+        delete arg1;
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_new_SourceHighlight) {
+  {
+    std::string const &arg1_defvalue = "html.outlang" ;
+    std::string *arg1 = (std::string *) &arg1_defvalue ;
+    int res1 = SWIG_OLDOBJ ;
+    int argvi = 0;
+    PerlSourceHighlight *result = 0 ;
+    dXSARGS;
+    
+    if ((items < 0) || (items > 1)) {
+      SWIG_croak("Usage: new_SourceHighlight(outputLang);");
+    }
+    if (items > 0) {
+      {
+        std::string *ptr = (std::string *)0;
+        res1 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(0), &ptr);
+        if (!SWIG_IsOK(res1)) {
+          SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "new_SourceHighlight" "', argument " "1"" of type '" "std::string const &""'"); 
+        }
+        if (!ptr) {
+          SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "new_SourceHighlight" "', argument " "1"" of type '" "std::string const &""'"); 
+        }
+        arg1 = ptr;
+      }
+    }
+    {
+      try {
+        result = (PerlSourceHighlight *)new PerlSourceHighlight((std::string const &)*arg1);
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    ST(argvi) = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_PerlSourceHighlight, SWIG_OWNER | SWIG_SHADOW); argvi++ ;
     if (SWIG_IsNewObj(res1)) delete arg1;
     XSRETURN(argvi);
   fail:
@@ -1940,7 +2566,7 @@ XS(_wrap_new_SourceHighlight) {
 
 XS(_wrap_SourceHighlight_highlightFile) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     std::string *arg3 = 0 ;
     std::string *arg4 = 0 ;
@@ -1955,11 +2581,11 @@ XS(_wrap_SourceHighlight_highlightFile) {
     if ((items < 4) || (items > 4)) {
       SWIG_croak("Usage: SourceHighlight_highlightFile(self,input,output,inputLang);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_highlightFile" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_highlightFile" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2036,7 +2662,7 @@ XS(_wrap_SourceHighlight_highlightFile) {
 
 XS(_wrap_SourceHighlight_checkLangDef) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2047,11 +2673,11 @@ XS(_wrap_SourceHighlight_checkLangDef) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_checkLangDef(self,langFile);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_checkLangDef" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_checkLangDef" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2102,7 +2728,7 @@ XS(_wrap_SourceHighlight_checkLangDef) {
 
 XS(_wrap_SourceHighlight_checkOutLangDef) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2113,11 +2739,11 @@ XS(_wrap_SourceHighlight_checkOutLangDef) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_checkOutLangDef(self,langFile);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_checkOutLangDef" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_checkOutLangDef" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2168,7 +2794,7 @@ XS(_wrap_SourceHighlight_checkOutLangDef) {
 
 XS(_wrap_SourceHighlight_createOutputFileName) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2180,11 +2806,11 @@ XS(_wrap_SourceHighlight_createOutputFileName) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_createOutputFileName(self,inputFile);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_createOutputFileName" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_createOutputFileName" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2235,7 +2861,7 @@ XS(_wrap_SourceHighlight_createOutputFileName) {
 
 XS(_wrap_SourceHighlight_setDataDir) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2246,11 +2872,11 @@ XS(_wrap_SourceHighlight_setDataDir) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setDataDir(self,datadir);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setDataDir" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setDataDir" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2301,7 +2927,7 @@ XS(_wrap_SourceHighlight_setDataDir) {
 
 XS(_wrap_SourceHighlight_setStyleFile) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2312,11 +2938,11 @@ XS(_wrap_SourceHighlight_setStyleFile) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setStyleFile(self,styleFile);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setStyleFile" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setStyleFile" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2367,7 +2993,7 @@ XS(_wrap_SourceHighlight_setStyleFile) {
 
 XS(_wrap_SourceHighlight_setStyleCssFile) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2378,11 +3004,11 @@ XS(_wrap_SourceHighlight_setStyleCssFile) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setStyleCssFile(self,styleFile);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setStyleCssFile" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setStyleCssFile" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2433,7 +3059,7 @@ XS(_wrap_SourceHighlight_setStyleCssFile) {
 
 XS(_wrap_SourceHighlight_setStyleDefaultFile) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2444,11 +3070,11 @@ XS(_wrap_SourceHighlight_setStyleDefaultFile) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setStyleDefaultFile(self,styleDefaultFile);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setStyleDefaultFile" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setStyleDefaultFile" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2499,7 +3125,7 @@ XS(_wrap_SourceHighlight_setStyleDefaultFile) {
 
 XS(_wrap_SourceHighlight_setTitle) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2510,11 +3136,11 @@ XS(_wrap_SourceHighlight_setTitle) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setTitle(self,title);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setTitle" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setTitle" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2565,7 +3191,7 @@ XS(_wrap_SourceHighlight_setTitle) {
 
 XS(_wrap_SourceHighlight_setCss) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2576,11 +3202,11 @@ XS(_wrap_SourceHighlight_setCss) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setCss(self,css);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setCss" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setCss" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2631,7 +3257,7 @@ XS(_wrap_SourceHighlight_setCss) {
 
 XS(_wrap_SourceHighlight_setHeaderFileName) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2642,11 +3268,11 @@ XS(_wrap_SourceHighlight_setHeaderFileName) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setHeaderFileName(self,h);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setHeaderFileName" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setHeaderFileName" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2697,7 +3323,7 @@ XS(_wrap_SourceHighlight_setHeaderFileName) {
 
 XS(_wrap_SourceHighlight_setFooterFileName) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2708,11 +3334,11 @@ XS(_wrap_SourceHighlight_setFooterFileName) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setFooterFileName(self,f);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setFooterFileName" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setFooterFileName" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2763,7 +3389,7 @@ XS(_wrap_SourceHighlight_setFooterFileName) {
 
 XS(_wrap_SourceHighlight_setOutputDir) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2774,11 +3400,11 @@ XS(_wrap_SourceHighlight_setOutputDir) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setOutputDir(self,outputDir);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setOutputDir" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setOutputDir" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -2829,7 +3455,7 @@ XS(_wrap_SourceHighlight_setOutputDir) {
 
 XS(_wrap_SourceHighlight_setOptimize) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     bool arg2 = (bool) true ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2841,11 +3467,11 @@ XS(_wrap_SourceHighlight_setOptimize) {
     if ((items < 1) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setOptimize(self,b);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setOptimize" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setOptimize" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     if (items > 1) {
       ecode2 = SWIG_AsVal_bool SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
       if (!SWIG_IsOK(ecode2)) {
@@ -2892,7 +3518,7 @@ XS(_wrap_SourceHighlight_setOptimize) {
 
 XS(_wrap_SourceHighlight_setGenerateLineNumbers) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     bool arg2 = (bool) true ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2904,11 +3530,11 @@ XS(_wrap_SourceHighlight_setGenerateLineNumbers) {
     if ((items < 1) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setGenerateLineNumbers(self,b);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateLineNumbers" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateLineNumbers" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     if (items > 1) {
       ecode2 = SWIG_AsVal_bool SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
       if (!SWIG_IsOK(ecode2)) {
@@ -2955,7 +3581,7 @@ XS(_wrap_SourceHighlight_setGenerateLineNumbers) {
 
 XS(_wrap_SourceHighlight_setGenerateLineNumberRefs) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     bool arg2 = (bool) true ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -2967,11 +3593,11 @@ XS(_wrap_SourceHighlight_setGenerateLineNumberRefs) {
     if ((items < 1) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setGenerateLineNumberRefs(self,b);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateLineNumberRefs" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateLineNumberRefs" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     if (items > 1) {
       ecode2 = SWIG_AsVal_bool SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
       if (!SWIG_IsOK(ecode2)) {
@@ -3018,7 +3644,7 @@ XS(_wrap_SourceHighlight_setGenerateLineNumberRefs) {
 
 XS(_wrap_SourceHighlight_setLineNumberPad) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     char arg2 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3030,11 +3656,11 @@ XS(_wrap_SourceHighlight_setLineNumberPad) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setLineNumberPad(self,c);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setLineNumberPad" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setLineNumberPad" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     ecode2 = SWIG_AsVal_char SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
     if (!SWIG_IsOK(ecode2)) {
       SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "SourceHighlight_setLineNumberPad" "', argument " "2"" of type '" "char""'");
@@ -3079,7 +3705,7 @@ XS(_wrap_SourceHighlight_setLineNumberPad) {
 
 XS(_wrap_SourceHighlight_setLineNumberAnchorPrefix) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3090,11 +3716,11 @@ XS(_wrap_SourceHighlight_setLineNumberAnchorPrefix) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setLineNumberAnchorPrefix(self,prefix);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setLineNumberAnchorPrefix" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setLineNumberAnchorPrefix" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -3145,7 +3771,7 @@ XS(_wrap_SourceHighlight_setLineNumberAnchorPrefix) {
 
 XS(_wrap_SourceHighlight_setGenerateEntireDoc) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     bool arg2 = (bool) true ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3157,11 +3783,11 @@ XS(_wrap_SourceHighlight_setGenerateEntireDoc) {
     if ((items < 1) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setGenerateEntireDoc(self,b);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateEntireDoc" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateEntireDoc" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     if (items > 1) {
       ecode2 = SWIG_AsVal_bool SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
       if (!SWIG_IsOK(ecode2)) {
@@ -3208,7 +3834,7 @@ XS(_wrap_SourceHighlight_setGenerateEntireDoc) {
 
 XS(_wrap_SourceHighlight_setGenerateVersion) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     bool arg2 = (bool) true ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3220,11 +3846,11 @@ XS(_wrap_SourceHighlight_setGenerateVersion) {
     if ((items < 1) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setGenerateVersion(self,b);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateVersion" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setGenerateVersion" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     if (items > 1) {
       ecode2 = SWIG_AsVal_bool SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
       if (!SWIG_IsOK(ecode2)) {
@@ -3271,7 +3897,7 @@ XS(_wrap_SourceHighlight_setGenerateVersion) {
 
 XS(_wrap_SourceHighlight_setCanUseStdOut) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     bool arg2 = (bool) true ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3283,11 +3909,11 @@ XS(_wrap_SourceHighlight_setCanUseStdOut) {
     if ((items < 1) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setCanUseStdOut(self,b);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setCanUseStdOut" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setCanUseStdOut" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     if (items > 1) {
       ecode2 = SWIG_AsVal_bool SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
       if (!SWIG_IsOK(ecode2)) {
@@ -3334,7 +3960,7 @@ XS(_wrap_SourceHighlight_setCanUseStdOut) {
 
 XS(_wrap_SourceHighlight_setBinaryOutput) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     bool arg2 = (bool) true ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3346,11 +3972,11 @@ XS(_wrap_SourceHighlight_setBinaryOutput) {
     if ((items < 1) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setBinaryOutput(self,b);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setBinaryOutput" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setBinaryOutput" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     if (items > 1) {
       ecode2 = SWIG_AsVal_bool SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
       if (!SWIG_IsOK(ecode2)) {
@@ -3395,9 +4021,66 @@ XS(_wrap_SourceHighlight_setBinaryOutput) {
 }
 
 
+XS(_wrap_SourceHighlight_setHighlightEventListener) {
+  {
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
+    HighlightEventListener *arg2 = (HighlightEventListener *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    dXSARGS;
+    
+    if ((items < 2) || (items > 2)) {
+      SWIG_croak("Usage: SourceHighlight_setHighlightEventListener(self,l);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setHighlightEventListener" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
+    }
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
+    {
+      arg2 = new PerlHighlightEventListener(ST(1));
+    }
+    {
+      try {
+        (arg1)->setHighlightEventListener(arg2);
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    
+    
+    
+    XSRETURN(argvi);
+  fail:
+    
+    
+    SWIG_croak_null();
+  }
+}
+
+
 XS(_wrap_SourceHighlight_setRangeSeparator) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3408,11 +4091,11 @@ XS(_wrap_SourceHighlight_setRangeSeparator) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setRangeSeparator(self,sep);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setRangeSeparator" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setRangeSeparator" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -3463,7 +4146,7 @@ XS(_wrap_SourceHighlight_setRangeSeparator) {
 
 XS(_wrap_SourceHighlight_setTabSpaces) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     unsigned int arg2 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
@@ -3475,11 +4158,11 @@ XS(_wrap_SourceHighlight_setTabSpaces) {
     if ((items < 2) || (items > 2)) {
       SWIG_croak("Usage: SourceHighlight_setTabSpaces(self,i);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setTabSpaces" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_setTabSpaces" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     ecode2 = SWIG_AsVal_unsigned_SS_int SWIG_PERL_CALL_ARGS_2(ST(1), &val2);
     if (!SWIG_IsOK(ecode2)) {
       SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "SourceHighlight_setTabSpaces" "', argument " "2"" of type '" "unsigned int""'");
@@ -3524,7 +4207,7 @@ XS(_wrap_SourceHighlight_setTabSpaces) {
 
 XS(_wrap_SourceHighlight_highlightString) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     std::string *arg2 = 0 ;
     std::string *arg3 = 0 ;
     std::string const &arg4_defvalue = "" ;
@@ -3541,11 +4224,11 @@ XS(_wrap_SourceHighlight_highlightString) {
     if ((items < 3) || (items > 4)) {
       SWIG_croak("Usage: SourceHighlight_highlightString(self,input,inputLang,inputFileName);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, 0 |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, 0 |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_highlightString" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SourceHighlight_highlightString" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       std::string *ptr = (std::string *)0;
       res2 = SWIG_AsPtr_std_string SWIG_PERL_CALL_ARGS_2(ST(1), &ptr);
@@ -3583,7 +4266,7 @@ XS(_wrap_SourceHighlight_highlightString) {
     }
     {
       try {
-        result = SourceHighlight_highlightString(arg1,(std::string const &)*arg2,(std::string const &)*arg3,(std::string const &)*arg4);
+        result = PerlSourceHighlight_highlightString(arg1,(std::string const &)*arg2,(std::string const &)*arg3,(std::string const &)*arg4);
       }
       catch (srchilite::IOException &e) {
         SWIG_exception(SWIG_IOError, e.message.c_str());
@@ -3624,7 +4307,7 @@ XS(_wrap_SourceHighlight_highlightString) {
 
 XS(_wrap_delete_SourceHighlight) {
   {
-    SourceHighlight *arg1 = (SourceHighlight *) 0 ;
+    PerlSourceHighlight *arg1 = (PerlSourceHighlight *) 0 ;
     void *argp1 = 0 ;
     int res1 = 0 ;
     int argvi = 0;
@@ -3633,11 +4316,11 @@ XS(_wrap_delete_SourceHighlight) {
     if ((items < 1) || (items > 1)) {
       SWIG_croak("Usage: delete_SourceHighlight(self);");
     }
-    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_SourceHighlight, SWIG_POINTER_DISOWN |  0 );
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_PerlSourceHighlight, SWIG_POINTER_DISOWN |  0 );
     if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_SourceHighlight" "', argument " "1"" of type '" "SourceHighlight *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_SourceHighlight" "', argument " "1"" of type '" "PerlSourceHighlight *""'"); 
     }
-    arg1 = reinterpret_cast< SourceHighlight * >(argp1);
+    arg1 = reinterpret_cast< PerlSourceHighlight * >(argp1);
     {
       try {
         delete arg1;
@@ -4009,6 +4692,126 @@ XS(_wrap_LangMap_getMappedFileNameFromFileName) {
 }
 
 
+XS(_wrap_LangMap_langNames) {
+  {
+    LangMap *arg1 = (LangMap *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    SwigValueWrapper< std::set< std::string > > result;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: LangMap_langNames(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_LangMap, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "LangMap_langNames" "', argument " "1"" of type '" "LangMap *""'"); 
+    }
+    arg1 = reinterpret_cast< LangMap * >(argp1);
+    {
+      try {
+        result = LangMap_langNames(arg1);
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    {
+      AV *elements = newAV();
+      
+      for (std::set< std::string >::const_iterator it = (&result)->begin(); it != (&result)->end(); ++it)
+      av_push(elements, newSVpvn(it->data(), it->size()));
+      
+      ST(argvi) = sv_2mortal((SV *)newRV_noinc((SV *)elements));
+      argvi++;
+    }
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
+XS(_wrap_LangMap_mappedFileNames) {
+  {
+    LangMap *arg1 = (LangMap *) 0 ;
+    void *argp1 = 0 ;
+    int res1 = 0 ;
+    int argvi = 0;
+    SwigValueWrapper< std::set< std::string > > result;
+    dXSARGS;
+    
+    if ((items < 1) || (items > 1)) {
+      SWIG_croak("Usage: LangMap_mappedFileNames(self);");
+    }
+    res1 = SWIG_ConvertPtr(ST(0), &argp1,SWIGTYPE_p_LangMap, 0 |  0 );
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "LangMap_mappedFileNames" "', argument " "1"" of type '" "LangMap *""'"); 
+    }
+    arg1 = reinterpret_cast< LangMap * >(argp1);
+    {
+      try {
+        result = LangMap_mappedFileNames(arg1);
+      }
+      catch (srchilite::IOException &e) {
+        SWIG_exception(SWIG_IOError, e.message.c_str());
+      }
+      /*@SWIG:/usr/share/swig1.3/typemaps/exception.swg,61,SWIG_CATCH_STDEXCEPT@*/  /* catching std::exception  */
+      catch (std::invalid_argument& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::domain_error& e) {
+        SWIG_exception_fail(SWIG_ValueError, e.what() );
+      } catch (std::overflow_error& e) {
+        SWIG_exception_fail(SWIG_OverflowError, e.what() );
+      } catch (std::out_of_range& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::length_error& e) {
+        SWIG_exception_fail(SWIG_IndexError, e.what() );
+      } catch (std::runtime_error& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what() );
+      } catch (std::exception& e) {
+        SWIG_exception_fail(SWIG_SystemError, e.what() );
+      }
+      /*@SWIG@*/
+    }
+    {
+      AV *elements = newAV();
+      
+      for (std::set< std::string >::const_iterator it = (&result)->begin(); it != (&result)->end(); ++it)
+      av_push(elements, newSVpvn(it->data(), it->size()));
+      
+      ST(argvi) = sv_2mortal((SV *)newRV_noinc((SV *)elements));
+      argvi++;
+    }
+    
+    XSRETURN(argvi);
+  fail:
+    
+    SWIG_croak_null();
+  }
+}
+
+
 XS(_wrap_delete_LangMap) {
   {
     LangMap *arg1 = (LangMap *) 0 ;
@@ -4063,23 +4866,35 @@ XS(_wrap_delete_LangMap) {
 
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
+static swig_type_info _swigt__p_HighlightEvent = {"_p_HighlightEvent", "HighlightEvent *", 0, 0, (void*)"Syntax::SourceHighlight::HighlightEvent", 0};
+static swig_type_info _swigt__p_HighlightEventListener = {"_p_HighlightEventListener", "HighlightEventListener *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_HighlightToken = {"_p_HighlightToken", "HighlightToken *", 0, 0, (void*)"Syntax::SourceHighlight::HighlightToken", 0};
 static swig_type_info _swigt__p_LangMap = {"_p_LangMap", "LangMap *", 0, 0, (void*)"Syntax::SourceHighlight::LangMap", 0};
-static swig_type_info _swigt__p_SourceHighlight = {"_p_SourceHighlight", "SourceHighlight *", 0, 0, (void*)"Syntax::SourceHighlight::SourceHighlight", 0};
+static swig_type_info _swigt__p_PerlSourceHighlight = {"_p_PerlSourceHighlight", "PerlSourceHighlight *", 0, 0, (void*)"Syntax::SourceHighlight::SourceHighlight", 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
+  &_swigt__p_HighlightEvent,
+  &_swigt__p_HighlightEventListener,
+  &_swigt__p_HighlightToken,
   &_swigt__p_LangMap,
-  &_swigt__p_SourceHighlight,
+  &_swigt__p_PerlSourceHighlight,
   &_swigt__p_char,
 };
 
+static swig_cast_info _swigc__p_HighlightEvent[] = {  {&_swigt__p_HighlightEvent, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_HighlightEventListener[] = {  {&_swigt__p_HighlightEventListener, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_HighlightToken[] = {  {&_swigt__p_HighlightToken, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_LangMap[] = {  {&_swigt__p_LangMap, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_SourceHighlight[] = {  {&_swigt__p_SourceHighlight, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_PerlSourceHighlight[] = {  {&_swigt__p_PerlSourceHighlight, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
+  _swigc__p_HighlightEvent,
+  _swigc__p_HighlightEventListener,
+  _swigc__p_HighlightToken,
   _swigc__p_LangMap,
-  _swigc__p_SourceHighlight,
+  _swigc__p_PerlSourceHighlight,
   _swigc__p_char,
 };
 
@@ -4096,6 +4911,15 @@ static swig_variable_info swig_variables[] = {
 {0,0,0,0}
 };
 static swig_command_info swig_commands[] = {
+{"Syntax::SourceHighlightc::HighlightToken_prefix", _wrap_HighlightToken_prefix},
+{"Syntax::SourceHighlightc::HighlightToken_isPrefixOnlySpaces", _wrap_HighlightToken_isPrefixOnlySpaces},
+{"Syntax::SourceHighlightc::HighlightToken_suffix", _wrap_HighlightToken_suffix},
+{"Syntax::SourceHighlightc::HighlightToken_matchedSize", _wrap_HighlightToken_matchedSize},
+{"Syntax::SourceHighlightc::HighlightToken_matched", _wrap_HighlightToken_matched},
+{"Syntax::SourceHighlightc::delete_HighlightToken", _wrap_delete_HighlightToken},
+{"Syntax::SourceHighlightc::HighlightEvent_token", _wrap_HighlightEvent_token},
+{"Syntax::SourceHighlightc::HighlightEvent_type", _wrap_HighlightEvent_type},
+{"Syntax::SourceHighlightc::delete_HighlightEvent", _wrap_delete_HighlightEvent},
 {"Syntax::SourceHighlightc::new_SourceHighlight", _wrap_new_SourceHighlight},
 {"Syntax::SourceHighlightc::SourceHighlight_highlightFile", _wrap_SourceHighlight_highlightFile},
 {"Syntax::SourceHighlightc::SourceHighlight_checkLangDef", _wrap_SourceHighlight_checkLangDef},
@@ -4119,6 +4943,7 @@ static swig_command_info swig_commands[] = {
 {"Syntax::SourceHighlightc::SourceHighlight_setGenerateVersion", _wrap_SourceHighlight_setGenerateVersion},
 {"Syntax::SourceHighlightc::SourceHighlight_setCanUseStdOut", _wrap_SourceHighlight_setCanUseStdOut},
 {"Syntax::SourceHighlightc::SourceHighlight_setBinaryOutput", _wrap_SourceHighlight_setBinaryOutput},
+{"Syntax::SourceHighlightc::SourceHighlight_setHighlightEventListener", _wrap_SourceHighlight_setHighlightEventListener},
 {"Syntax::SourceHighlightc::SourceHighlight_setRangeSeparator", _wrap_SourceHighlight_setRangeSeparator},
 {"Syntax::SourceHighlightc::SourceHighlight_setTabSpaces", _wrap_SourceHighlight_setTabSpaces},
 {"Syntax::SourceHighlightc::SourceHighlight_highlightString", _wrap_SourceHighlight_highlightString},
@@ -4126,6 +4951,8 @@ static swig_command_info swig_commands[] = {
 {"Syntax::SourceHighlightc::new_LangMap", _wrap_new_LangMap},
 {"Syntax::SourceHighlightc::LangMap_getMappedFileName", _wrap_LangMap_getMappedFileName},
 {"Syntax::SourceHighlightc::LangMap_getMappedFileNameFromFileName", _wrap_LangMap_getMappedFileNameFromFileName},
+{"Syntax::SourceHighlightc::LangMap_langNames", _wrap_LangMap_langNames},
+{"Syntax::SourceHighlightc::LangMap_mappedFileNames", _wrap_LangMap_mappedFileNames},
 {"Syntax::SourceHighlightc::delete_LangMap", _wrap_delete_LangMap},
 {0,0}
 };
@@ -4421,7 +5248,29 @@ XS(SWIG_init) {
     SvREADONLY_on(sv);
   }
   
-  SWIG_TypeClientData(SWIGTYPE_p_SourceHighlight, (void*) "Syntax::SourceHighlight::SourceHighlight");
+  SWIG_TypeClientData(SWIGTYPE_p_HighlightToken, (void*) "Syntax::SourceHighlight::HighlightToken");
+  /*@SWIG:/usr/share/swig1.3/perl5/perltypemaps.swg,64,%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "HighlightEvent_FORMAT", TRUE | 0x2 | GV_ADDMULTI);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(HighlightEvent::FORMAT)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
+  /*@SWIG:/usr/share/swig1.3/perl5/perltypemaps.swg,64,%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "HighlightEvent_FORMATDEFAULT", TRUE | 0x2 | GV_ADDMULTI);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(HighlightEvent::FORMATDEFAULT)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
+  /*@SWIG:/usr/share/swig1.3/perl5/perltypemaps.swg,64,%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "HighlightEvent_ENTERSTATE", TRUE | 0x2 | GV_ADDMULTI);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(HighlightEvent::ENTERSTATE)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
+  /*@SWIG:/usr/share/swig1.3/perl5/perltypemaps.swg,64,%set_constant@*/ do {
+    SV *sv = get_sv((char*) SWIG_prefix "HighlightEvent_EXITSTATE", TRUE | 0x2 | GV_ADDMULTI);
+    sv_setsv(sv, SWIG_From_int  SWIG_PERL_CALL_ARGS_1(static_cast< int >(HighlightEvent::EXITSTATE)));
+    SvREADONLY_on(sv);
+  } while(0) /*@SWIG@*/;
+  SWIG_TypeClientData(SWIGTYPE_p_HighlightEvent, (void*) "Syntax::SourceHighlight::HighlightEvent");
+  SWIG_TypeClientData(SWIGTYPE_p_PerlSourceHighlight, (void*) "Syntax::SourceHighlight::SourceHighlight");
   SWIG_TypeClientData(SWIGTYPE_p_LangMap, (void*) "Syntax::SourceHighlight::LangMap");
   ST(0) = &PL_sv_yes;
   XSRETURN(1);

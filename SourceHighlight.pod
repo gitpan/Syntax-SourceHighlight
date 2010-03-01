@@ -93,49 +93,102 @@ Given the input file name creates an output file name.
 
 =back
 
-=head2 PROPERTY SETTERS OF Syntax::SourceHighlight::SourceHighlight
+=head2 PROPERTY ACCESSORS OF Syntax::SourceHighlight::SourceHighlight
 
 =over
 
 =item $hl->setDataDir($data_directory_name)
 
+Path for several configuration files.
+
 =item $hl->setStyleFile($style_file_name)
+
+The style file.
 
 =item $hl->setStyleCssFile($style_file_name)
 
+The css style file.
+
 =item $hl->setStyleDefaultFile($style_file_name)
+
+The style defaults file.
 
 =item $hl->setTitle($title)
 
+The title of the output document. Defaults to the source file name.
+
 =item $hl->setCss($css)
+
+The value for the css.
 
 =item $hl->setHeaderFileName($header_file_name)
 
+The file name of the header.
+
 =item $hl->setFooterFileName($footer_file_name)
+
+The file name of the footer.
 
 =item $hl->setOutputDir($output_directory_name)
 
+The directory for output files.
+
 =item $hl->setOptimize([$flag])
+
+Whether to optmize output. For example adiacent text parts belonging
+to the same element will be buffered and generated as a single text
+part.
 
 =item $hl->setGenerateLineNumbers([$flag])
 
+Whether to generate line numbers.
+
 =item $hl->setGenerateLineNumberRefs([$flag])
+
+Whether to generate line numbers with references.
 
 =item $hl->setLineNumberPad($character)
 
+The line number padding char. Defaults to C<"0">.
+
 =item $hl->setLineNumberAnchorPrefix($prefix)
+
+The prefix for the line number anchors.
 
 =item $hl->setGenerateEntireDoc([$flag])
 
+Whether to generate an entire document. Defaults to false.
+
 =item $hl->setGenerateVersion([$flag])
+
+Whether to generate the program version in the output file. Defaults
+to true.
 
 =item $hl->setCanUseStdOut([$flag])
 
+Whether we can use stdout for generating the output. Defaults to true.
+
 =item $hl->setBinaryOutput([$flag])
+
+Whether to open output files in binary mode. Defaults to false.
 
 =item $hl->setRangeSeparator($separator)
 
+The separator for ranges.
+
 =item $hl->setTabSpaces($number)
+
+If greater than 0 it means that tabs will be replaced by that many
+blank characters.
+
+=item $hl->setHighlightEventListener($sub_name | $sub_ref)
+
+A callback to be invoked on each highlighting event. Highlighting
+events are objects of the class Syntax::SourceHighlight::HighlightEvent.
+
+The highlighting event objects passed to the callback are roots of
+object graphs valid only during the dynamic scope of the callback
+execution.
 
 =back
 
@@ -161,6 +214,88 @@ Prolog, not Perl :-(
 
 =back
 
+=head2 PROPERTY ACCESSORS OF Syntax::SourceHighlight::LangMap
+
+=over
+
+=item $lm->langNames()
+
+An array reference containing all known human readable language names
+known to the language map.
+
+=item $lm->mappedFileNames()
+
+An array reference containing all known file names of language
+definitions known to the language map.
+
+=back
+
+=head2 PROPERTY ACCESSORS OF Syntax::SourceHighlight::HighlightEvent
+
+=over
+
+=item $evt->type()
+
+The type of event. The value is C<==> to one of the following
+constants:
+
+=over
+
+=item $Syntax::SourceHighlight::HighlightEvent::FORMAT
+
+A standard formatting event.
+
+=item $Syntax::SourceHighlight::HighlightEvent::FORMATDEFAULT
+
+Formatting something as normal.
+
+=item $Syntax::SourceHighlight::HighlightEvent::ENTERSTATE
+
+Entering a new formatting state.
+
+=item $Syntax::SourceHighlight::HighlightEvent::EXITSTATE
+
+Exiting a formatting state.
+
+=back
+
+=item $evt->token()
+
+The token of source text corresponding to the event, represented by an
+object of the class Syntax::SourceHighlight::HighlightToken.
+
+=back
+
+=head2 PROPERTY ACCESSORS OF Syntax::SourceHighlight::HighlightToken
+
+=over
+
+=item $tok->prefix()
+
+An possible part of source text before the matched string.
+
+=item $tok->isPrefixOnlySpaces()
+
+True value iff the prefix is empty or consists only of whitespace
+characters.
+
+=item $tok->suffix()
+
+A possible part of source text after the matched string.
+
+=item $tok->matchedSize()
+
+The size of the whole match.
+
+=item $tok->matched()
+
+An array reference containing strings of the form
+C<"$element_name:$source_text">. The C<$element_name> part depends on
+the source language definition and usually classifies the type of
+source text, for example whether it is a variable name or a keyword.
+
+=back
+
 =head1 SEE ALSO
 
 The homepage of the original library is at
@@ -178,6 +313,5 @@ Thomas Chust, E<lt>chust@web.deE<gt>
 Copyright (C) 2010 by Thomas Chust
 
 This binding is in the public domain.
-
 
 =cut

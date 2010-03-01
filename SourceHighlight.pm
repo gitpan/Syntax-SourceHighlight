@@ -49,6 +49,79 @@ sub this {
 package Syntax::SourceHighlight;
 
 
+############# Class : Syntax::SourceHighlight::HighlightToken ##############
+
+package Syntax::SourceHighlight::HighlightToken;
+use vars qw(@ISA %OWNER %ITERATORS %BLESSEDMEMBERS);
+@ISA = qw( Syntax::SourceHighlight );
+%OWNER = ();
+%ITERATORS = ();
+*prefix = *Syntax::SourceHighlightc::HighlightToken_prefix;
+*isPrefixOnlySpaces = *Syntax::SourceHighlightc::HighlightToken_isPrefixOnlySpaces;
+*suffix = *Syntax::SourceHighlightc::HighlightToken_suffix;
+*matchedSize = *Syntax::SourceHighlightc::HighlightToken_matchedSize;
+*matched = *Syntax::SourceHighlightc::HighlightToken_matched;
+sub DESTROY {
+    return unless $_[0]->isa('HASH');
+    my $self = tied(%{$_[0]});
+    return unless defined $self;
+    delete $ITERATORS{$self};
+    if (exists $OWNER{$self}) {
+        Syntax::SourceHighlightc::delete_HighlightToken($self);
+        delete $OWNER{$self};
+    }
+}
+
+sub DISOWN {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    delete $OWNER{$ptr};
+}
+
+sub ACQUIRE {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    $OWNER{$ptr} = 1;
+}
+
+
+############# Class : Syntax::SourceHighlight::HighlightEvent ##############
+
+package Syntax::SourceHighlight::HighlightEvent;
+use vars qw(@ISA %OWNER %ITERATORS %BLESSEDMEMBERS);
+@ISA = qw( Syntax::SourceHighlight );
+%OWNER = ();
+%ITERATORS = ();
+*FORMAT = *Syntax::SourceHighlightc::HighlightEvent_FORMAT;
+*FORMATDEFAULT = *Syntax::SourceHighlightc::HighlightEvent_FORMATDEFAULT;
+*ENTERSTATE = *Syntax::SourceHighlightc::HighlightEvent_ENTERSTATE;
+*EXITSTATE = *Syntax::SourceHighlightc::HighlightEvent_EXITSTATE;
+*token = *Syntax::SourceHighlightc::HighlightEvent_token;
+*type = *Syntax::SourceHighlightc::HighlightEvent_type;
+sub DESTROY {
+    return unless $_[0]->isa('HASH');
+    my $self = tied(%{$_[0]});
+    return unless defined $self;
+    delete $ITERATORS{$self};
+    if (exists $OWNER{$self}) {
+        Syntax::SourceHighlightc::delete_HighlightEvent($self);
+        delete $OWNER{$self};
+    }
+}
+
+sub DISOWN {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    delete $OWNER{$ptr};
+}
+
+sub ACQUIRE {
+    my $self = shift;
+    my $ptr = tied(%$self);
+    $OWNER{$ptr} = 1;
+}
+
+
 ############# Class : Syntax::SourceHighlight::SourceHighlight ##############
 
 package Syntax::SourceHighlight::SourceHighlight;
@@ -84,6 +157,7 @@ sub new {
 *setGenerateVersion = *Syntax::SourceHighlightc::SourceHighlight_setGenerateVersion;
 *setCanUseStdOut = *Syntax::SourceHighlightc::SourceHighlight_setCanUseStdOut;
 *setBinaryOutput = *Syntax::SourceHighlightc::SourceHighlight_setBinaryOutput;
+*setHighlightEventListener = *Syntax::SourceHighlightc::SourceHighlight_setHighlightEventListener;
 *setRangeSeparator = *Syntax::SourceHighlightc::SourceHighlight_setRangeSeparator;
 *setTabSpaces = *Syntax::SourceHighlightc::SourceHighlight_setTabSpaces;
 *highlightString = *Syntax::SourceHighlightc::SourceHighlight_highlightString;
@@ -126,6 +200,8 @@ sub new {
 
 *getMappedFileName = *Syntax::SourceHighlightc::LangMap_getMappedFileName;
 *getMappedFileNameFromFileName = *Syntax::SourceHighlightc::LangMap_getMappedFileNameFromFileName;
+*langNames = *Syntax::SourceHighlightc::LangMap_langNames;
+*mappedFileNames = *Syntax::SourceHighlightc::LangMap_mappedFileNames;
 sub DESTROY {
     return unless $_[0]->isa('HASH');
     my $self = tied(%{$_[0]});
@@ -154,4 +230,6 @@ sub ACQUIRE {
 
 package Syntax::SourceHighlight;
 
+
+our $VERSION = "1.1.0";
 1;

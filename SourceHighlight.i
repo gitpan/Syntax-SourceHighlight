@@ -6,6 +6,9 @@
 
 %{
 #include <sstream>
+#include <srchilite/highlighttoken.h>
+#include <srchilite/highlightevent.h>
+#include <srchilite/highlighteventlistener.h>
 #include <srchilite/sourcehighlight.h>
 #include <srchilite/langmap.h>
 #include <srchilite/ioexception.h>
@@ -23,10 +26,151 @@ using namespace srchilite;
   SWIG_CATCH_STDEXCEPT
 }
 
-%nodefaultctor SourceHighlight;
-class SourceHighlight {
+%typemap(out) MatchedElements & {
+  AV *elements = newAV();
+
+  for (MatchedElements::const_iterator it = $1->begin(); it != $1->end(); ++it)
+    av_push(elements, newSVpvf("%s:%s", it->first.c_str(), it->second.c_str()));
+
+  $result = sv_2mortal((SV *)newRV_noinc((SV *)elements));
+  argvi++;
+}
+
+%nodefaultctor HighlightToken;
+class HighlightToken {
  public:
-  SourceHighlight(const std::string &outputLang = "html.outlang");
+  //HighlightToken(const HighlightRule *rule = 0);
+  //HighlightToken(const std::string &elem, const std::string &matched, const std::string &prefix, const HighlightRule *rule = 0);
+  //void copyFrom(const HighlightToken &token);
+  //void clearMatched();
+  //void addMatched(const std::string &elem, const std::string &s);
+  //std::string prefix;
+  //bool prefixOnlySpaces;
+  //std::string suffix;
+  //MatchedElements matched;
+  //unsigned int matchedSize;
+  //MatchedSubExps matchedSubExps;
+  //const HighlightRule *rule;
+} ;
+
+%extend HighlightToken {
+  const std::string &prefix() {
+    return $self->prefix;
+  }
+
+  bool isPrefixOnlySpaces() {
+    return $self->prefixOnlySpaces;
+  }
+
+  const std::string &suffix() {
+    return $self->suffix;
+  }
+
+  unsigned int matchedSize() {
+    return $self->matchedSize;
+  }
+
+  const MatchedElements &matched() {
+    return $self->matched;
+  }
+}
+
+%nodefaultctor HighlightEvent;
+class HighlightEvent {
+ public:
+  enum HighlightEventType {
+    FORMAT = 0,
+    FORMATDEFAULT,
+    ENTERSTATE,
+    EXITSTATE
+  } ;
+
+  //HighlightEvent(const HighlightToken &token, HighlightEventType type = FORMAT);
+  //const HighlightToken &token;
+  //HighlightEventType type;
+} ;
+
+%extend HighlightEvent {
+  const HighlightToken &token() {
+    return $self->token;
+  }
+
+  HighlightEventType type() {
+    return $self->type;
+  }
+}
+
+%{
+class PerlHighlightEventListener : public HighlightEventListener {
+ private:
+  SV *callback;
+  
+ public:
+  PerlHighlightEventListener(SV *callback) : HighlightEventListener(), callback(callback) {
+    SvREFCNT_inc(callback);
+  }
+  
+  virtual ~PerlHighlightEventListener() {
+    SvREFCNT_dec(callback);
+  }
+  
+  virtual void notify(const HighlightEvent &event) {
+    dSP;
+    
+    ENTER;
+    SAVETMPS;
+    
+    PUSHMARK(SP);
+    XPUSHs(SWIG_NewPointerObj(SWIG_as_voidptr(&event),
+			      SWIGTYPE_p_HighlightEvent, SWIG_SHADOW));
+    PUTBACK;
+    
+    call_sv(callback, G_VOID | G_EVAL);
+    
+    FREETMPS;
+    LEAVE;
+    
+    if (SvTRUE(ERRSV)) {
+      STRLEN len;
+      throw std::runtime_error(SvPV(ERRSV, len));
+    }
+  }
+} ;
+%}
+
+%typemap(in) HighlightEventListener * {
+  $1 = new PerlHighlightEventListener($input);
+}
+
+%{
+class PerlSourceHighlight : public SourceHighlight {
+ private:
+  HighlightEventListener *highlightEventListener;
+
+ public:
+  PerlSourceHighlight(const std::string &outputLang) : SourceHighlight(outputLang), highlightEventListener(0) {
+  }
+
+  ~PerlSourceHighlight() {
+    setHighlightEventListener(0);
+  }
+
+  void setHighlightEventListener(HighlightEventListener *l) {
+    SourceHighlight::setHighlightEventListener(l);
+    
+    if (highlightEventListener)
+      delete highlightEventListener;
+    
+    highlightEventListener = l;
+  }
+} ;
+%}
+
+%rename(SourceHighlight) PerlSourceHighlight;
+%nodefaultctor PerlSourceHighlight;
+class PerlSourceHighlight {
+ public:
+  PerlSourceHighlight(const std::string &outputLang = "html.outlang");
   //void initialize();
   %rename(highlightFile) highlight;
   void highlight(const std::string &input, const std::string &output, const std::string &inputLang);
@@ -55,7 +199,7 @@ class SourceHighlight {
   void setGenerateVersion(bool b = true);
   void setCanUseStdOut(bool b = true);
   void setBinaryOutput(bool b = true);
-  //void setHighlightEventListener(HighlightEventListener *l);
+  void setHighlightEventListener(HighlightEventListener *l);
   void setRangeSeparator(const std::string &sep);
   //DocGenerator *getDocGenerator() const;
   //DocGenerator *getNoDocGenerator() const;
@@ -67,7 +211,7 @@ class SourceHighlight {
   void setTabSpaces(unsigned int i);
 } ;
 
-%extend SourceHighlight {
+%extend PerlSourceHighlight {
   const std::string highlightString(const std::string &input, const std::string &inputLang, const std::string &inputFileName = "") {
     std::stringstream inputStream(input);
     std::stringstream outputStream;
@@ -76,6 +220,16 @@ class SourceHighlight {
 
     return outputStream.str();
   }
+}
+
+%typemap(out) std::set< std::string > {
+  AV *elements = newAV();
+
+  for (std::set< std::string >::const_iterator it = $1.begin(); it != $1.end(); ++it)
+    av_push(elements, newSVpvn(it->data(), it->size()));
+
+  $result = sv_2mortal((SV *)newRV_noinc((SV *)elements));
+  argvi++;
 }
 
 %nodefaultctor LangMap;
@@ -93,3 +247,19 @@ class LangMap {
   //std::set< std::string > getLangNames() const;
   //std::set< std::string > getMappedFileNames() const;
 } ;
+
+%extend LangMap {
+  const std::set< std::string > langNames() {
+    $self->open();
+    return $self->getLangNames();
+  }
+
+  const std::set< std::string > mappedFileNames() {
+    $self->open();
+    return $self->getMappedFileNames();
+  }
+}
+
+%perlcode %{
+our $VERSION = "1.1.0";
+%}

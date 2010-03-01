@@ -7,27 +7,50 @@ use FindBin;
 use Syntax::SourceHighlight;
 
 my $hl = Syntax::SourceHighlight::SourceHighlight->new('esc.outlang');
-my $in = $ARGV[0] // $FindBin::Script;
-my $isfile = -e $in;
+
+my ($isfile, $in) = do {
+    if (not @ARGV or $ARGV[0] eq '-f') {
+	(1, $ARGV[1] // $FindBin::Script);
+    }
+    elsif ($ARGV[0] eq '-s') {
+	die "No source specified" unless (defined $ARGV[1]);
+	(0, $ARGV[1]);
+    }
+    else {
+	die "First parameter should be -f for file input or -s for string input";
+    }
+};
 
 my $lang = eval {
     my $lm = Syntax::SourceHighlight::LangMap->new();
 
-    if (exists $ARGV[1]) {
-	return $lm->getMappedFileName($ARGV[1]);
+    if ($ARGV[2]) {
+	$lm->getMappedFileName($ARGV[2]);
     }
     elsif ($isfile) {
-	return $lm->getMappedFileNameFromFileName($in);
+	$lm->getMappedFileNameFromFileName($in);
     }
     else {
-	die "don't know how to guess\n";
+	die "Language cannot be guessed";
     }
 };
 unless ($lang) {
-    chomp $@;
-    warn "Unknown source language, $@, assuming Perl";
+    warn "Problems determining source language, assuming Perl: $@";
     $lang = 'perl.lang';
 }
+
+my $nvars = 0;
+my $cvars = 0;
+
+$hl->setHighlightEventListener(sub {
+    my ($evt) = @_;
+
+    if ($evt->type == $Syntax::SourceHighlight::HighlightEvent::FORMAT and
+	$evt->token->matched->[0] =~ m/^variable:/) {
+	$nvars++;
+	$cvars += $evt->token->matchedSize
+    }
+});
 
 if ($isfile) {
     $hl->highlightFile($in, '', $lang);
@@ -35,3 +58,5 @@ if ($isfile) {
 else {
     say $hl->highlightString($in, $lang);
 }
+
+say "The program contained $nvars variable references occupying $cvars source characters.";
