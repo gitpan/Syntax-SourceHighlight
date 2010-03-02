@@ -240,10 +240,11 @@ BEGIN {
       my $data = catfile($_, 'Syntax', 'SourceHighlight');
       if (-d $data) {
 	$ENV{SOURCE_HIGHLIGHT_DATADIR} = $data;
+	last;
       }
     }
   }
 }
 
-our $VERSION = "1.1.1";
+our $VERSION = "1.1.2";
 1;

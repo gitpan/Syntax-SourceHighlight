@@ -2,116 +2,54 @@
 use strict;
 use warnings;
 
-use File::Spec::Functions qw/rel2abs updir catfile/;
-use File::Copy qw/move/;
-use Archive::Tar;
+use File::Spec::Functions qw/catfile/;
+use FindBin;
+use lib catfile($FindBin::Bin, 'backend');
+
 use ExtUtils::MakeMaker;
-use ExtUtils::PkgConfig;
+use SourceHighlightBuild qw/find_source_highlight build_source_highlight/;
 
-sub find_source_highlight {
-    ExtUtils::PkgConfig->find('source-highlight >= 3.1');
-}
+my %source_highlight_pkg = eval {
+    if (defined $ENV{PKG_CONFIG_PATH} and $ENV{PKG_CONFIG_PATH} eq '') {
+	if (prompt('Ignore possibly installed backend library?', 'no') =~ m/^y(?:es)?$/i) {
+	    die "Possibly installed backend library is ignored";
+	}
+    }
 
-sub install_source_highlight {
-    my $dist = 'source-highlight-3.1.3';
-    my $tarball = "$dist.tar.gz";
-    my $url = "ftp://ftp.gnu.org/gnu/src-highlite/$tarball";
+    find_source_highlight();
+};
+if (my $exn = $@) {
+    warn $exn;
 
     print qq/
-Unless you cancel the execution of this script within the next 10 s,
-an attempt will be made to download GNU Source Highlight from
+The native backend library GNU Source Highlight was not found. You can
+possibly install it using the package manager of your operating system
+with a command like
 
-  $url
+  aptitude install source-highlight libsource-highlight-dev
 
-and compile it as a static library that will be linked into this Perl
-extension...\n/;
-    sleep 10;
+or
 
-    mkdir 'backend';
-    chdir 'backend' or die "Working directory cannot be changed: $!";
+  yum install source-highlight
 
-    unless (-e $tarball) {
-	print "Downloading...\n";
+Make sure that you pick a version above 3.1 since older versions don't
+provide the public API used by this Perl extension. Also make sure to
+install the development headers and libraries so that the native part
+of this extension can be built.
 
-	if (do { eval 'use LWP::Simple'; not $@ }) {
-	    unless (&is_success(&getstore($url, $tarball))) {
-		die "Download of $url failed";
-	    }
-	}
-	elsif (system('curl', '-O', $url) != -1) {
-	    unless ($? >> 8 == 0) {
-		die "Download of $url failed";
-	    }
-	}
-	elsif (system('wget', $url) != -1) {
-	    unless ($? >> 8 == 0) {
-		die "Download of $url failed";
-	    }
-	}
-	else {
-	    die 'Neither LWP::Simple nor curl or wget were useable for the download';
-	}
+If you wish, this script can also try to download the distribution
+
+  $SourceHighlightBuild::URL
+
+unpack it, build it and link it statically into this Perl extension.
+\n/;
+
+    if (prompt('Try to build a private backend library?', 'yes') =~ m/^y(?:es)?$/i) {
+	%source_highlight_pkg = build_source_highlight();
     }
-
-    unless (-d $dist) {
-	print "Extracting...\n";
-	
-	if (my $archive = Archive::Tar->new($tarball, 1)) {
-	    unless ($archive->extract()) {
-		die "Extraction of $tarball failed: " . $archive->error;
-	    }
-	}
-	else {
-	    die "Couldn't open $tarball";
-	}
+    else {
+	die $exn;
     }
-
-    mkdir 'build';
-    chdir 'build';
-
-    unless (-e 'config.h') {
-	print "Configuring...\n";
-	
-	if (system(catfile(updir, $dist, 'configure'),
-		   '--enable-static', '--disable-shared',
-		   '--prefix=' . rel2abs(catfile(updir, 'stage'))) != 0) {
-	    die "Couldn't configure $dist";
-	}
-    }
-
-    print "Building...\n";
-    
-    if (system('make') != 0) {
-	die "Couldn't build $dist";
-    }
-
-    print "Staging...\n";
-
-    if (system('make', 'install') != 0) {
-	die "Couldn't stage $dist";
-    }
-
-    unless (-d (my $datadir = catfile(updir, updir, 'blib', 'lib', 'Syntax', 'SourceHighlight'))) {
-	mkdir catfile(updir, updir, 'blib');
-	mkdir catfile(updir, updir, 'blib', 'lib');
-	mkdir catfile(updir, updir, 'blib', 'lib', 'Syntax');
-	mkdir $datadir;
-	
-	unless(move(catfile(updir, 'stage', 'share', 'source-highlight'), $datadir)) {
-	    die "Couldn't stage $dist: $!"
-	}
-    }
-
-    chdir catfile(updir, updir) or die "Working directory cannot be changed: $!";
-
-    $ENV{PKG_CONFIG_PATH} = rel2abs(catfile('backend', 'stage', 'lib', 'pkgconfig'));
-    find_source_highlight();
-}
-
-my %source_highlight_pkg = eval { find_source_highlight() };
-if ($@) {
-    warn "The native backend library was not found: $@\n";
-    %source_highlight_pkg = install_source_highlight();
 }
 
 WriteMakefile(
