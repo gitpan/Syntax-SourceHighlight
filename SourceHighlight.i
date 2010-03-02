@@ -261,5 +261,19 @@ class LangMap {
 }
 
 %perlcode %{
-our $VERSION = "1.1.0";
+
+BEGIN {
+  use File::Spec::Functions qw/catfile/;
+
+  unless (exists $ENV{SOURCE_HIGHLIGHT_DATADIR}) {
+    for (@INC) {
+      my $data = catfile($_, 'Syntax', 'SourceHighlight');
+      if (-d $data) {
+	$ENV{SOURCE_HIGHLIGHT_DATADIR} = $data;
+      }
+    }
+  }
+}
+
+our $VERSION = "1.1.1";
 %}
